@@ -1,54 +1,152 @@
 # Toxicity Classifier
-When training LLMs, it is very important to make sure that you don't have toxic content within your dataset. For that reason, we developed this repo for fine tuning toxicity classifiers with your custom datasets.
 
-This repo has 3 main modules:
+When training large language models (LLMs), it's critical to ensure that your dataset does not contain toxic content. This repository provides scripts for labeling data, fine-tuning toxicity classifiers, and performing distributed inference to detect toxic content.
 
-- A data labeling script, that uses the GCP Cloud Natural Language API to rate a subsample of the dataset
-- A fine tuning script that takes the annotated data and fine tunes a classifier
-- An inference script, that takes a trained model and performs distributed inference over a dataset
+## Repository Structure
+
+```
+toxicity-classifier/
+├── .github/
+├── requirements/
+│   ├── base.txt
+│   └── ...
+├── src/
+│   ├── finetune_bert_classifier.py
+│   ├── finetune_bert_regresor.py
+│   ├── finetune_fasttext_classifier.py
+│   ├── gcp_data_labeling.py
+│   ├── inference_bert_regresor.py
+│   └── inference_fasttext_classifier.py
+├── .flake8
+├── .gitignore
+├── pre-commit-config.yaml
+└── README.md
+```
 
 ## Installation
-Create a python environment and run
+
+1. **Create a Python environment:**
+
+```bash
+python -m venv venv
+source venv/bin/activate
+```
+
+On Windows, activate using:
+
+```bash
+venv\Scripts\activate
+```
+
+2. **Install dependencies:**
+
 ```bash
 pip install -r requirements/base.txt
 ```
 
 ## Usage
-As mentioned before, this repo has 3 main modules.
 
-### GCP-based data labeling
-While trying diferent toxicity classifiers, we realized that the one provided by GCP was among the bests. For that reason, the script `gcp_data_labeling.py` uses the `Cloud Natural Language API`. In order to use it, you have to enable that API in your GCP project, and create a service account with a JSON credentials file. Once you've done that, you can run the script like this:
+This repository has three main modules:
 
-```bash
-python gcp_data_labeling.py --service_account_file <path_to_service_account.json> \
-                            --dataset_path <path_to_dataset> \
-                            --output_file <output_file_path> \
-                            --text_column <text_column_name>
-```
+### 1. GCP-based Data Labeling
 
-That will output a JSON file with annotated data, that you can later use as input for the fine tuning script.
+The script `gcp_data_labeling.py` labels a subsample of your dataset using the Google Cloud Natural Language API. Ensure the API is enabled and set up a service account.
 
-### Fine tuning
-Once you've got your data labeled, it's time for the fine tuning of the base model. To do that, you can run the `finetune.py` file with the following command:
+**Example:**
 
 ```bash
-python finetune.py --json_path <path_to_labeled_data.json> \
-                   --output_dir <output_directory> \
-                   --logging_dir <logging_directory> \
-                   --threshold <quelity_threshold> \
-                   --model_name <hf_model_name>
+python src/gcp_data_labeling.py --service_account_file <path_to_service_account.json> \
+                                --dataset_path <path_to_dataset> \
+                                --output_file <output_file_path> \
+                                --text_column <text_column_name>
 ```
 
-### Inference
-Finally, for distributed inference over your entire dataset, you have the `inference.py` file, which you can run like this:
+### 2. Fine Tuning
+
+After labeling your data, fine-tune models using these scripts:
+
+#### BERT Classifier
 
 ```bash
-python inference.py --model_path <path_to_model> \
-                    --dataset_path <path_to_dataset> \
-                    --output_path <output_file_path> \
-                    --text_column <text_column_name> \
-                    --batch_size <batch_size> \
-                    --procs_per_gpu <procs_per_gpu>
+python src/finetune_bert_classifier.py --json_path <path_to_labeled_data.json> \
+                                       --output_dir <output_directory> \
+                                       --logging_dir <logging_directory> \
+                                       --threshold <confidence_threshold> \
+                                       --model_name <hf_model_name> \
+                                       --undersample
 ```
 
-Getting a new dataset with your model's predictions.
+#### BERT Regressor
+
+For continuous toxicity scores:
+
+```bash
+python src/finetune_bert_regresor.py --json_path <path_to_labeled_data.json> \
+                                     --output_dir <output_directory> \
+                                     --logging_dir <logging_directory> \
+                                     --label_id <label_index> \
+                                     --threshold <score_threshold> \
+                                     --model_name <hf_model_name> \
+                                     --undersample
+```
+
+#### fastText Classifier
+
+Fine-tune a fastText classifier:
+
+```bash
+python src/finetune_fasttext_classifier.py --json_path <path_to_labeled_data.json> \
+                                           --output_model <path_to_output_model.bin> \
+                                           --threshold <confidence_threshold> \
+                                           --word_ngrams 2 \
+                                           --label "Toxic" \
+                                           --epoch 25 \
+                                           --lr 1.0 \
+                                           --autotuneDuration 600 \
+                                           --oversample
+```
+
+- The flags `--undersample` or `--oversample` activate dataset balancing methods.
+
+### 3. Inference
+
+Perform distributed inference on your entire dataset:
+
+#### fastText Classifier Inference
+
+```bash
+python src/inference_fasttext_classifier.py --model_path <path_to_trained_model.bin> \
+                                            --dataset_path <path_to_dataset> \
+                                            --output_path <output_file_or_directory> \
+                                            --text_column <text_column_name> \
+                                            --batch_size <batch_size> \
+                                            --chunk_size <examples_per_chunk>
+```
+
+#### BERT Regressor Inference
+
+```bash
+python src/inference_bert_regresor.py --model_path <path_to_trained_model> \
+                                      --dataset_path <path_to_dataset> \
+                                      --output_path <output_directory> \
+                                      --text_column <text_column_name> \
+                                      --batch_size <batch_size> \
+                                      --procs_per_gpu <procs_per_gpu>
+```
+
+## Additional Notes
+
+- **GPU/CPU Usage:**
+  - BERT-based scripts utilize GPUs via `CUDA_VISIBLE_DEVICES`.
+  - fastText scripts typically run on CPUs but can support GPUs experimentally.
+
+- **Hyperparameters:**
+  - Print fastText model hyperparameters for verification using provided functions.
+
+- **Chunked Processing:**
+  - Inference scripts handle large datasets efficiently by processing data in chunks.
+
+## License
+
+This project is licensed under the [MIT License](./LICENSE).
+

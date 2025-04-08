@@ -186,6 +186,5 @@ def main() -> None:
         f"Inferencia completada. Resultados finales guardados en '{args.output_file}'."
     )
 
-
 if __name__ == "__main__":
     main()
