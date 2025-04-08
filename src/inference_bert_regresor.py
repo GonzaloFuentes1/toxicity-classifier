@@ -8,11 +8,12 @@ from transformers import pipeline
 # Variable global para almacenar la instancia del pipeline
 toxicity_classifier = None
 
+
 def init_model(model_path: str, device_id: int):
     """
     Inicializa el pipeline de clasificación en la GPU especificada (device_id).
-    Se ejecuta solo una vez por proceso, gracias a la verificación de la variable global.
-    
+    Se ejecuta solo una vez por proceso, gracias a la verificación de la variable
+
     Args:
         model_path (str): Ruta al modelo preentrenado.
         device_id (int): ID de la GPU que se utilizará.
@@ -30,25 +31,28 @@ def init_model(model_path: str, device_id: int):
             )
             print(f"Pipeline inicializado en GPU {device_id}")
         except Exception as e:
-            raise RuntimeError(f"Error al inicializar el pipeline en GPU {device_id}: {e}")
+            raise RuntimeError(
+                f"Error al inicializar el pipeline en GPU {device_id}: {e}"
+            )
+
 
 def classify_toxicity(batch: dict, text_column: str, batch_size: int) -> dict:
     """
     Clasifica la toxicidad de un batch de textos utilizando la instancia global
     'toxicity_classifier'.
-    
+
     Args:
         batch (dict): Batch de ejemplos con al menos la clave 'text_column'.
         text_column (str): Nombre de la columna de texto.
         batch_size (int): Tamaño del batch a procesar.
-    
+
     Returns:
         dict: Diccionario con las predicciones 'toxicity_label' y 'toxicity_score'.
     """
     global toxicity_classifier
     if toxicity_classifier is None:
         raise RuntimeError("El pipeline aún no ha sido inicializado.")
-    
+
     texts = batch.get(text_column, None)
     if texts is None:
         raise ValueError(f"La llave '{text_column}' no se encontró en el batch.")
@@ -57,16 +61,24 @@ def classify_toxicity(batch: dict, text_column: str, batch_size: int) -> dict:
         results = toxicity_classifier(texts, batch_size=batch_size)
     except Exception as e:
         raise RuntimeError(f"Error durante la clasificación en el batch: {e}")
-    
+
     labels = [res["label"] for res in results]
     scores = [res["score"] for res in results]
     return {"toxicity_label": labels, "toxicity_score": scores}
 
-def process_batch(batch: dict, process_index: int, model_path: str, text_column: str, batch_size: int, num_gpus: int) -> dict:
+
+def process_batch(
+    batch: dict,
+    process_index: int,
+    model_path: str,
+    text_column: str,
+    batch_size: int,
+    num_gpus: int,
+) -> dict:
     """
     Función a ejecutar en paralelo mediante dataset.map().
     Se encarga de calcular el ID de la GPU correspondiente según el 'process_index',
-    inicializar el modelo (sólo una vez por proceso) y clasificar la toxicidad del batch.
+    inicializar el modelo (sólo una vez por proceso) y clasificar la toxicidad delbatch
 
     Args:
         batch (dict): Batch de ejemplos a procesar.
@@ -83,6 +95,7 @@ def process_batch(batch: dict, process_index: int, model_path: str, text_column:
     init_model(model_path, device_id)
     return classify_toxicity(batch, text_column, batch_size)
 
+
 def main():
     """Función principal del script."""
     parser = argparse.ArgumentParser(
@@ -91,28 +104,23 @@ def main():
     parser.add_argument(
         "--model_path",
         required=True,
-        help="Ruta al modelo de clasificación de toxicidad (pipeline de Hugging Face)."
+        help="Ruta al modelo de clasificación de toxicidad (pipeline de Hugging Face).",
     )
     parser.add_argument(
         "--dataset_path",
         required=True,
-        help="Ruta al dataset (almacenado en disco) que se desea etiquetar."
+        help="Ruta al dataset (almacenado en disco) que se desea etiquetar.",
     )
     parser.add_argument(
-        "--output_path",
-        required=True,
-        help="Ruta para guardar el dataset etiquetado."
+        "--output_path", required=True, help="Ruta para guardar el dataset etiquetado."
     )
     parser.add_argument(
         "--text_column",
         required=True,
-        help="Nombre de la columna que contiene el texto en el dataset."
+        help="Nombre de la columna que contiene el texto en el dataset.",
     )
     parser.add_argument(
-        "--batch_size",
-        required=True,
-        type=int,
-        help="Tamaño del batch a procesar."
+        "--batch_size", required=True, type=int, help="Tamaño del batch a procesar."
     )
     args = parser.parse_args()
 
@@ -125,13 +133,13 @@ def main():
         dataset = load_from_disk(args.dataset_path)
     except Exception as e:
         raise RuntimeError(f"Error al cargar el dataset: {e}")
-    
+
     # Filtrado del dataset según la etiqueta de toxicidad preexistente
     try:
         dataset = dataset.filter(
             lambda example: example.get("toxicity_prediction", None) == "__label__1",
             num_proc=128,
-            desc="Filtering toxic tweets"
+            desc="Filtering toxic tweets",
         )
     except Exception as e:
         raise RuntimeError(f"Error durante el filtrado del dataset: {e}")
@@ -154,7 +162,7 @@ def main():
                 args.model_path,
                 args.text_column,
                 args.batch_size,
-                num_gpus
+                num_gpus,
             ),
             batched=True,
             batch_size=args.batch_size,
@@ -167,9 +175,12 @@ def main():
     try:
         results.save_to_disk(args.output_path)
     except Exception as e:
-        raise RuntimeError(f"Error al guardar el dataset etiquetado en {args.output_path}: {e}")
+        raise RuntimeError(
+            f"Error al guardar el dataset etiquetado en {args.output_path}: {e}"
+        )
 
     print(f"Dataset etiquetado guardado en: {args.output_path}")
+
 
 if __name__ == "__main__":
     main()

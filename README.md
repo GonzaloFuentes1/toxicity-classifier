@@ -149,4 +149,3 @@ python src/inference_bert_regresor.py --model_path <path_to_trained_model> \
 ## License
 
 This project is licensed under the [MIT License](./LICENSE).
-

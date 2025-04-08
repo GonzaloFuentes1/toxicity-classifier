@@ -1,32 +1,35 @@
 import argparse
 import json
 import os
-import pandas as pd
 from typing import Any, Dict, Tuple
+
+import pandas as pd
 from datasets import Dataset, DatasetDict
 from sklearn.metrics import (
-    mean_squared_error,
-    mean_absolute_error,
-    r2_score,
     accuracy_score,
+    confusion_matrix,
+    mean_absolute_error,
+    mean_squared_error,
     precision_recall_fscore_support,
+    r2_score,
     roc_auc_score,
-    confusion_matrix
 )
 from sklearn.model_selection import train_test_split
 from sklearn.utils import resample
 from transformers import (
+    AutoConfig,
     AutoModelForSequenceClassification,
     AutoTokenizer,
     Trainer,
     TrainingArguments,
-    AutoConfig,
 )
 
 os.environ["CUDA_VISIBLE_DEVICES"] = "6,7"
 
 
-def load_data(json_path: str, label_id: int) -> Tuple[pd.DataFrame, pd.DataFrame, pd.DataFrame]:
+def load_data(
+    json_path: str, label_id: int
+) -> Tuple[pd.DataFrame, pd.DataFrame, pd.DataFrame]:
     """
     Carga los datos desde un JSON y divide en entrenamiento, validación y prueba.
     Se extrae el texto y la confianza del label indicado por label_id.
@@ -35,7 +38,10 @@ def load_data(json_path: str, label_id: int) -> Tuple[pd.DataFrame, pd.DataFrame
         data = json.load(file)
 
     texts = [x["original_text"] for x in data]
-    scores = [float(x["moderation_result"]["moderationCategories"][label_id]["confidence"]) for x in data]
+    scores = [
+        float(x["moderation_result"]["moderationCategories"][label_id]["confidence"])
+        for x in data
+    ]
 
     df = pd.DataFrame({"text": texts, "label": scores})
 
@@ -62,17 +68,25 @@ def undersample_dataframe(df: pd.DataFrame, threshold: float) -> pd.DataFrame:
 
     # Se elimina aleatoriamente muestras de la clase mayoritaria (sin reemplazo)
     if len(negatives) > len(positives):
-        negatives = resample(negatives, replace=False, n_samples=len(positives), random_state=42)
+        negatives = resample(
+            negatives, replace=False, n_samples=len(positives), random_state=42
+        )
     else:
-        positives = resample(positives, replace=False, n_samples=len(negatives), random_state=42)
+        positives = resample(
+            positives, replace=False, n_samples=len(negatives), random_state=42
+        )
 
-    balanced_df = pd.concat([positives, negatives]).sample(frac=1, random_state=42).reset_index(drop=True)
+    balanced_df = (
+        pd.concat([positives, negatives])
+        .sample(frac=1, random_state=42)
+        .reset_index(drop=True)
+    )
     return balanced_df.drop(columns=["binary_label"])
 
 
 def oversample_dataframe(df: pd.DataFrame, threshold: float) -> pd.DataFrame:
     """
-    Realiza oversampling: aumenta la clase minoritaria replicando muestras (con reemplazo)
+    Realiza oversampling: aumenta la clase minoritaria replicando muestras
     hasta igualar el número de muestras de la clase mayoritaria.
     Se convierte la variable numérica en binaria usando el threshold.
     """
@@ -86,13 +100,21 @@ def oversample_dataframe(df: pd.DataFrame, threshold: float) -> pd.DataFrame:
         print("⚠ No se puede oversamplear porque alguna clase no tiene muestras.")
         return df.drop(columns=["binary_label"])
 
-    # Se replica la clase minoritaria (con reemplazo) para igualar la cantidad de la mayoritaria
+    # Se replica la clase minoritaria (con reemplazo) para igualar la cantidad
     if len(positives) < len(negatives):
-        positives = resample(positives, replace=True, n_samples=len(negatives), random_state=42)
+        positives = resample(
+            positives, replace=True, n_samples=len(negatives), random_state=42
+        )
     else:
-        negatives = resample(negatives, replace=True, n_samples=len(positives), random_state=42)
+        negatives = resample(
+            negatives, replace=True, n_samples=len(positives), random_state=42
+        )
 
-    balanced_df = pd.concat([positives, negatives]).sample(frac=1, random_state=42).reset_index(drop=True)
+    balanced_df = (
+        pd.concat([positives, negatives])
+        .sample(frac=1, random_state=42)
+        .reset_index(drop=True)
+    )
     return balanced_df.drop(columns=["binary_label"])
 
 
@@ -112,11 +134,13 @@ def compute_metrics(eval_pred: Any, threshold: float) -> Dict[str, float]:
     true_labels = (labels >= threshold).astype(int)
 
     accuracy = accuracy_score(true_labels, pred_labels)
-    precision, recall, f1, _ = precision_recall_fscore_support(true_labels, pred_labels, average="binary")
+    precision, recall, f1, _ = precision_recall_fscore_support(
+        true_labels, pred_labels, average="binary"
+    )
     try:
         auc = roc_auc_score(true_labels, predictions)
     except Exception:
-        auc = float('nan')
+        auc = float("nan")
 
     return {
         "mse": mse,
@@ -126,25 +150,62 @@ def compute_metrics(eval_pred: Any, threshold: float) -> Dict[str, float]:
         "precision": precision,
         "recall": recall,
         "f1": f1,
-        "auc": auc
+        "auc": auc,
     }
 
 
 def main() -> None:
-    parser = argparse.ArgumentParser(description="Entrenamiento de modelo de regresión + clasificación")
-    parser.add_argument("--json_path", required=True, help="Ruta al archivo JSON con los datos")
-    parser.add_argument("--output_dir", required=True, help="Directorio de salida para guardar el modelo y métricas")
-    parser.add_argument("--logging_dir", required=True, help="Directorio para guardar los logs de entrenamiento")
-    parser.add_argument("--model_name", required=True, help="Nombre del modelo pre-entrenado de Hugging Face")
-    parser.add_argument("--label_id", type=int, default=0, help="Índice del label en moderationCategories")
-    parser.add_argument("--threshold", type=float, default=0.5, help="Threshold para convertir la label en binaria")
-    parser.add_argument("--undersample", action="store_true", help="Activar undersampling del set de entrenamiento")
-    parser.add_argument("--oversample", action="store_true", help="Activar oversampling del set de entrenamiento")
+    parser = argparse.ArgumentParser(
+        description="Entrenamiento de modelo de regresión + clasificación"
+    )
+    parser.add_argument(
+        "--json_path", required=True, help="Ruta al archivo JSON con los datos"
+    )
+    parser.add_argument(
+        "--output_dir",
+        required=True,
+        help="Directorio de salida para guardar el modelo y métricas",
+    )
+    parser.add_argument(
+        "--logging_dir",
+        required=True,
+        help="Directorio para guardar los logs de entrenamiento",
+    )
+    parser.add_argument(
+        "--model_name",
+        required=True,
+        help="Nombre del modelo pre-entrenado de Hugging Face",
+    )
+    parser.add_argument(
+        "--label_id",
+        type=int,
+        default=0,
+        help="Índice del label en moderationCategories",
+    )
+    parser.add_argument(
+        "--threshold",
+        type=float,
+        default=0.5,
+        help="Threshold para convertir la label en binaria",
+    )
+    parser.add_argument(
+        "--undersample",
+        action="store_true",
+        help="Activar undersampling del set de entrenamiento",
+    )
+    parser.add_argument(
+        "--oversample",
+        action="store_true",
+        help="Activar oversampling del set de entrenamiento",
+    )
     args = parser.parse_args()
 
     # Verificar que no se activen ambos métodos al mismo tiempo.
     if args.undersample and args.oversample:
-        print("⚠ Debes elegir solo una estrategia: undersample o oversample, no ambas.", flush=True)
+        print(
+            "⚠ Debes elegir solo una estrategia: undersample o oversample, no ambas.",
+            flush=True,
+        )
         exit(1)
 
     # ----- Data -----
@@ -157,13 +218,17 @@ def main() -> None:
         print("⚡ Aplicando oversampling al set de entrenamiento")
         train_df = oversample_dataframe(train_df, args.threshold)
     else:
-        print("⚡ Sin balanceo (undersample/oversample) aplicado al set de entrenamiento")
+        print(
+            "⚡ Sin balanceo (undersample/oversample) aplicado al set de entrenamiento"
+        )
 
-    dataset = DatasetDict({
-        "train": Dataset.from_pandas(train_df),
-        "validation": Dataset.from_pandas(val_df),
-        "test": Dataset.from_pandas(test_df),
-    })
+    dataset = DatasetDict(
+        {
+            "train": Dataset.from_pandas(train_df),
+            "validation": Dataset.from_pandas(val_df),
+            "test": Dataset.from_pandas(test_df),
+        }
+    )
 
     tokenizer = AutoTokenizer.from_pretrained(args.model_name)
 
@@ -203,7 +268,7 @@ def main() -> None:
         train_dataset=tokenized_datasets["train"],
         eval_dataset=tokenized_datasets["validation"],
         tokenizer=tokenizer,
-        compute_metrics=lambda eval_pred: compute_metrics(eval_pred, args.threshold)
+        compute_metrics=lambda eval_pred: compute_metrics(eval_pred, args.threshold),
     )
 
     trainer.train()
@@ -220,12 +285,15 @@ def main() -> None:
     pred_bin = (test_predictions >= args.threshold).astype(int)
     true_bin = (test_labels >= args.threshold).astype(int)
 
-    cm = confusion_matrix(true_bin, pred_bin, normalize='true')
+    cm = confusion_matrix(true_bin, pred_bin, normalize="true")
     print("\nConfusion matrix (normalized):")
     print(cm)
 
     os.makedirs(args.output_dir, exist_ok=True)
-    cm_output_path = os.path.join(args.output_dir, f"confusion_matrix_{args.model_name.replace('/', '_')}_id{args.label_id}.json")
+    cm_output_path = os.path.join(
+        args.output_dir,
+        f"confusion_matrix_{args.model_name.replace('/', '_')}_id{args.label_id}.json",
+    )
     with open(cm_output_path, "w") as f:
         json.dump(cm.tolist(), f)
 
@@ -236,13 +304,14 @@ def main() -> None:
         pred_bin = (test_predictions >= threshold).astype(int)
         true_bin = (test_labels >= threshold).astype(int)
 
-        cm = confusion_matrix(true_bin, pred_bin, normalize='true')
-        print(f"\nConfusion matrix (normalized) for threshold {threshold}:")
+        cm = confusion_matrix(true_bin, pred_bin, normalize="true")
+        print(f"\nConfusion matrix (normalized) for threshold {threshold}: ")
         print(cm)
 
         cm_output_path = os.path.join(
             args.output_dir,
-            f"confusion_matrix_{args.model_name.replace('/', '_')}_id{args.label_id}_threshold_{threshold}.json"
+            f"confusion_matrix_{args.model_name.replace('/', '_')}_id{args.label_id}_"
+            f"threshold_{threshold}.json",
         )
         with open(cm_output_path, "w") as f:
             json.dump(cm.tolist(), f)

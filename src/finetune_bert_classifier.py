@@ -1,25 +1,29 @@
 import argparse
 import json
 import os
+from typing import Any, Dict, List, Tuple, Union
+
 import pandas as pd
-from typing import Any, Dict, Tuple, Union, List
-from torch.optim import AdamW
 from datasets import Dataset, DatasetDict
-from sklearn.metrics import accuracy_score, precision_recall_fscore_support, confusion_matrix
+from sklearn.metrics import (
+    accuracy_score,
+    confusion_matrix,
+    precision_recall_fscore_support,
+)
 from sklearn.model_selection import train_test_split
 from sklearn.utils import resample
 from transformers import (
+    AutoConfig,
     AutoModelForSequenceClassification,
     AutoTokenizer,
     Trainer,
     TrainingArguments,
-    XLMRobertaModel,
     XLMRobertaForSequenceClassification,
-    AutoConfig,
-    get_scheduler
+    XLMRobertaModel,
 )
 
 os.environ["CUDA_VISIBLE_DEVICES"] = "3,4,6"
+
 
 def load_data(
     json_path: str, threshold: float, label_id: int = 0
@@ -44,7 +48,8 @@ def load_data(
     labels = list(
         map(
             lambda x: 1
-            if x["moderation_result"]["moderationCategories"][label_id]["confidence"] > threshold
+            if x["moderation_result"]["moderationCategories"][label_id]["confidence"]
+            > threshold
             else 0,
             data,
         )
@@ -61,14 +66,15 @@ def load_data(
 
     return train_df, val_df, test_df
 
+
 def undersample_dataframe(df: pd.DataFrame) -> pd.DataFrame:
     """
     Realiza undersampling para balancear las clases en un DataFrame,
     reduciendo la clase mayoritaria sin reemplazo.
-    
+
     Args:
         df (pd.DataFrame): DataFrame con las columnas `text` y `label`.
-        
+
     Returns:
         pd.DataFrame: DataFrame balanceado.
     """
@@ -76,7 +82,9 @@ def undersample_dataframe(df: pd.DataFrame) -> pd.DataFrame:
     class_1 = df[df["label"] == 1]
 
     if len(class_0) == 0 or len(class_1) == 0:
-        print("⚠ No se puede aplicar undersampling ya que alguna clase no tiene muestras.")
+        print(
+            "⚠ No se puede aplicar undersampling ya que alguna clase no tiene muestras."
+        )
         return df
 
     if len(class_0) > len(class_1):
@@ -95,14 +103,15 @@ def undersample_dataframe(df: pd.DataFrame) -> pd.DataFrame:
     )
     return balanced_df
 
+
 def oversample_dataframe(df: pd.DataFrame) -> pd.DataFrame:
     """
     Realiza oversampling para balancear las clases en un DataFrame,
     aumentando la clase minoritaria mediante remuestreo con reemplazo.
-    
+
     Args:
         df (pd.DataFrame): DataFrame con las columnas `text` y `label`.
-        
+
     Returns:
         pd.DataFrame: DataFrame balanceado.
     """
@@ -110,7 +119,9 @@ def oversample_dataframe(df: pd.DataFrame) -> pd.DataFrame:
     class_1 = df[df["label"] == 1]
 
     if len(class_0) == 0 or len(class_1) == 0:
-        print("⚠ No se puede aplicar oversampling ya que alguna clase no tiene muestras.")
+        print(
+            "⚠ No se puede aplicar oversampling ya que alguna clase no tiene muestras."
+        )
         return df
 
     if len(class_0) < len(class_1):
@@ -129,6 +140,7 @@ def oversample_dataframe(df: pd.DataFrame) -> pd.DataFrame:
     )
     return balanced_df
 
+
 def compute_metrics(eval_pred: Any) -> Dict[str, float]:
     """
     Calcula métricas de evaluación para el modelo.
@@ -146,6 +158,7 @@ def compute_metrics(eval_pred: Any) -> Dict[str, float]:
         labels, predictions, average="binary"
     )
     return {"accuracy": accuracy, "precision": precision, "recall": recall, "f1": f1}
+
 
 def main() -> None:
     """
@@ -174,23 +187,29 @@ def main() -> None:
     )
     parser.add_argument("--model_name", required=True, help="Modelo a finetunear.")
     parser.add_argument(
-        "--label_id", required=False, default=0, type=int, help="ID de la categoría a evaluar."
+        "--label_id",
+        required=False,
+        default=0,
+        type=int,
+        help="ID de la categoría a evaluar.",
     )
     parser.add_argument(
         "--undersample",
         action="store_true",
-        help="Aplicar undersampling al set de entrenamiento."
+        help="Aplicar undersampling al set de entrenamiento.",
     )
     parser.add_argument(
         "--oversample",
         action="store_true",
-        help="Aplicar oversampling al set de entrenamiento."
+        help="Aplicar oversampling al set de entrenamiento.",
     )
     args = parser.parse_args()
 
     # Se verifica que no se especifiquen ambas estrategias
     if args.undersample and args.oversample:
-        print("⚠ Debes elegir solo una estrategia: --undersample o --oversample, no ambas.")
+        print(
+            "Debes elegir solo una estrategia: --undersample o --oversample, no ambas."
+        )
         exit(1)
 
     json_path = args.json_path
@@ -240,7 +259,9 @@ def main() -> None:
 
     # Cargar modelo: si se usa un modelo en particular se puede personalizar la carga
     if model_name == "unitary/multilingual-toxic-xlm-roberta":
-        base_model = XLMRobertaModel.from_pretrained("unitary/multilingual-toxic-xlm-roberta")
+        base_model = XLMRobertaModel.from_pretrained(
+            "unitary/multilingual-toxic-xlm-roberta"
+        )
         config = AutoConfig.from_pretrained("unitary/multilingual-toxic-xlm-roberta")
         config.num_labels = 2
         config.problem_type = "single_label_classification"
@@ -248,7 +269,10 @@ def main() -> None:
         model.roberta.load_state_dict(base_model.state_dict(), strict=False)
     else:
         model = AutoModelForSequenceClassification.from_pretrained(
-            model_name, ignore_mismatched_sizes=False, num_labels=num_labels, problem_type="single_label_classification"
+            model_name,
+            ignore_mismatched_sizes=False,
+            num_labels=num_labels,
+            problem_type="single_label_classification",
         )
 
     training_args = TrainingArguments(
@@ -281,18 +305,24 @@ def main() -> None:
     results = trainer.evaluate()
     print(results)
 
-    predictions = trainer.predict(tokenized_datasets["validation"]).predictions.argmax(axis=-1)
+    predictions = trainer.predict(tokenized_datasets["validation"]).predictions.argmax(
+        axis=-1
+    )
     labels = tokenized_datasets["validation"]["label"]
-    cm = confusion_matrix(labels, predictions, normalize='true')
+    cm = confusion_matrix(labels, predictions, normalize="true")
     print("Confusion matrix (proporcional):")
     print(cm)
 
     # Guardar la matriz de confusión en un archivo
-    cm_output_path = os.path.join(output_dir, f"confusion_matrix_{model_name.split('/')[-1]}_id{args.label_id}.json")
+    cm_output_path = os.path.join(
+        output_dir,
+        f"confusion_matrix_{model_name.split('/')[-1]}_id{args.label_id}.json",
+    )
     os.makedirs(output_dir, exist_ok=True)
     with open(cm_output_path, "w") as cm_file:
         json.dump(cm.tolist(), cm_file)
     print(f"Confusion matrix saved to {cm_output_path}")
+
 
 if __name__ == "__main__":
     main()
