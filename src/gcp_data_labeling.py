@@ -9,7 +9,7 @@ from google.oauth2.service_account import Credentials
 
 SCOPES = ["https://www.googleapis.com/auth/cloud-platform"]
 API_URL = "https://language.googleapis.com/v1/documents:moderateText"
-BATCH_SIZE = 100
+BATCH_SIZE = 1000
 
 
 def create_authorized_session(
@@ -80,7 +80,6 @@ def infer_text(session: AuthorizedSession, text: str) -> Union[Dict, None]:
         "document": {
             "type": "PLAIN_TEXT",
             "content": text,
-            "language": "es",
         }
     }
     response = session.post(
@@ -186,6 +185,6 @@ def main() -> None:
         f"Inferencia completada. Resultados finales guardados en '{args.output_file}'."
     )
 
-
+    
 if __name__ == "__main__":
     main()
