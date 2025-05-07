@@ -118,11 +118,11 @@ def evaluate_model(model: fasttext.FastText, test_file: str, model_name: str):
     cm = confusion_matrix(labels_true, labels_pred)
 
     metrics = (
-        f"Accuracy: {acc:.4f}\n"
-        f"Precision: {prec:.4f}\n"
-        f"Recall: {rec:.4f}\n"
-        f"F1-score: {f1:.4f}\n"
-        f"Confusion Matrix:\n{cm}\n"
+        f"Accuracy : {acc:.4f}\n"
+        f"Precision : {prec:.4f}\n"
+        f"Recall : {rec:.4f}\n"
+        f"F1-score : {f1:.4f}\n"
+        f"Confusion Matrix :\n{cm}\n"
     )
     print(metrics)
     with open(f"{model_name}_metrics.txt", "w", encoding="utf-8") as out:

@@ -32,10 +32,10 @@ def classify_toxicity(batch: dict, text_column: str) -> dict:
         el texto completo como '__label__1' y se asigna como score el máximo score
         - Si ningún párrafo es '__label__1', se asigna '__label__0' y se toma el máximo
         de cualquier párrafo.
-    Args:
-        batch (dict): Diccionario con listas de ejemplos.
-        text_column (str): Nombre de la columna de texto en el batch.
-    Returns:
+    Args :
+        batch (dict) : Diccionario con listas de ejemplos.
+        text_column (str) : Nombre de la columna de texto en el batch.
+    Returns :
         dict: Diccionario con las claves 'toxicity_label' y 'toxicity_score'.
     """
     global toxicity_classifier
@@ -77,11 +77,11 @@ def process_batch(batch: dict, model_path: str, text_column: str) -> dict:
     """
     Inicializa el modelo fastText (si no se ha hecho aún) y clasifica el batch.
     Args:
-        batch (dict): Batch a procesar.
-        model_path (str): Ruta al modelo fastText.
-        text_column (str): Nombre de la columna de texto.
-    Returns:
-        dict: Diccionario con las predicciones.
+        batch (dict) : Batch a procesar.
+        model_path (str) : Ruta al modelo fastText.
+        text_column (str) : Nombre de la columna de texto.
+    Returns :
+        dict : Diccionario con las predicciones.
     """
     init_model(model_path)
     return classify_toxicity(batch, text_column)

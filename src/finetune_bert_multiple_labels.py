@@ -1,4 +1,3 @@
-
 import argparse
 import json
 import os
@@ -104,7 +103,7 @@ def load_data(
     val_df, test_df = train_test_split(test_df, test_size=0.5, random_state=42)
     train_df.reset_index(drop=True, inplace=True)
     val_df.reset_index(drop=True, inplace=True)
-    test_df.reset_index(drop=True, inplace=True)
+    test_df.reset_index(drop=True)
 
     if balance_method == "undersample":
         train_df = undersample_data(train_df, label_column="labels")
