@@ -4,11 +4,8 @@ import re
 
 import fasttext
 import pandas as pd
-from sklearn.metrics import (
-    accuracy_score,
-    confusion_matrix,
-    precision_recall_fscore_support,
-)
+from sklearn.metrics import (accuracy_score, confusion_matrix,
+                             precision_recall_fscore_support)
 from sklearn.model_selection import train_test_split
 from sklearn.utils import resample
 
@@ -118,11 +115,11 @@ def evaluate_model(model: fasttext.FastText, test_file: str, model_name: str):
     cm = confusion_matrix(labels_true, labels_pred)
 
     metrics = (
-        f"Accuracy : {acc:.4f}\n"
-        f"Precision : {prec:.4f}\n"
-        f"Recall : {rec:.4f}\n"
-        f"F1-score : {f1:.4f}\n"
-        f"Confusion Matrix :\n{cm}\n"
+        f"Accuracy : {acc: .4f}\n"
+        f"Precision : {prec: .4f}\n"
+        f"Recall : {rec: .4f}\n"
+        f"F1-score : {f1: .4f}\n"
+        f"Confusion Matrix : \n{cm}\n"
     )
     print(metrics)
     with open(f"{model_name}_metrics.txt", "w", encoding="utf-8") as out:

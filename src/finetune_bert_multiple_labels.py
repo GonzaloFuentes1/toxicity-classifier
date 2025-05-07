@@ -7,21 +7,12 @@ import numpy as np
 import pandas as pd
 import torch
 from datasets import Dataset, DatasetDict
-from sklearn.metrics import (
-    f1_score,
-    precision_recall_fscore_support,
-    precision_score,
-    recall_score,
-)
+from sklearn.metrics import (f1_score, precision_recall_fscore_support,
+                             precision_score, recall_score)
 from sklearn.model_selection import train_test_split
 from sklearn.utils import resample
-from transformers import (
-    AutoConfig,
-    AutoModelForSequenceClassification,
-    AutoTokenizer,
-    Trainer,
-    TrainingArguments,
-)
+from transformers import (AutoConfig, AutoModelForSequenceClassification,
+                          AutoTokenizer, Trainer, TrainingArguments)
 
 # === Environment setup ===
 os.environ["WANDB_MODE"] = "disabled"
@@ -270,7 +261,7 @@ def main() -> None:
 
     test_metrics = compute_metrics((test_predictions, test_labels), args.threshold)
     for key, value in test_metrics.items():
-        print(f"{key}: {value:.4f}")
+        print(f"{key}: {value: .4f}")
 
     test_metrics_output_path = os.path.join(full_output_dir, "test_metrics.json")
     with open(test_metrics_output_path, "w") as f:

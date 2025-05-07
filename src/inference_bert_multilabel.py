@@ -5,12 +5,8 @@ import time
 import numpy as np
 import torch
 from datasets import load_from_disk
-from transformers import (
-    AutoModelForSequenceClassification,
-    AutoTokenizer,
-    Trainer,
-    TrainingArguments,
-)
+from transformers import (AutoModelForSequenceClassification, AutoTokenizer,
+                          Trainer, TrainingArguments)
 
 os.environ["WANDB_MODE"] = "disabled"
 
@@ -33,7 +29,7 @@ def group_by_parent(
     para_ds = load_from_disk(expanded_path)
     if num_shards > 1:
         para_ds = para_ds.shard(num_shards=num_shards, index=shard_id)
-    print(f"[INFO] Párrafos cargados en {time.time() - t0:.2f} s")
+    print(f"[INFO] Párrafos cargados en {time.time() - t0: .2f} s")
 
     # Añadir scores y agrupar por parent_id
     preds = para_ds.add_column("toxicity_scores", scores.tolist())
