@@ -15,7 +15,7 @@ login("")
 
 def get_prompt(model_name, text, prompt_template):
     formatted_text = prompt_template.format(
-        text=text.replace("\n", " ").strip()[:2500]
+        text=text.replace("\n", " ").strip()[: 2500]
     )
     if any(x in model_name.lower() for x in ["mixtral", "mistral"]):
         return f"<s>[INST] {formatted_text} [/INST]"
@@ -73,7 +73,7 @@ if __name__ == "__main__":
         raise ValueError(
             f"La columna '{args.text_column}' no se encuentra en el dataset."
         )
-    texts = ds[args.text_column][:100000000]
+    texts = ds[args.text_column][: 100000000]
 
     texts_full = []
     for text in tqdm(texts):
@@ -136,7 +136,7 @@ if __name__ == "__main__":
             for i, output in enumerate(outputs):
                 try:
                     raw_output = output.outputs[0].text.strip()
-                    print("🔍 Salida cruda del modelo:\n", raw_output)
+                    print("🔍 Salida cruda del modelo: \n", raw_output)
                     if not raw_output:
                         error += 1
                         raise ValueError("Modelo devolvió una cadena vacía")
@@ -191,6 +191,6 @@ if __name__ == "__main__":
         json.dump(results, f, indent=2, ensure_ascii=False)
 
     print(
-        f"\n✅ Clasificación completada. Resultados finales guardados en:"
+        f"\n✅ Clasificación completada. Resultados finales guardados en: "
         f" {args.output_path}"
     )
